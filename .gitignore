@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# Database (generated)
+db/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Large raw/generated data (keep small files and .gitkeep)
+data/raw/
+data/*.csv
+data/*.parquet
+data/*.zip
+data/*.jsonl
+!data/.gitkeep
