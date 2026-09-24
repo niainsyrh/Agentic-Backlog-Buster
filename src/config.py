@@ -53,6 +53,16 @@ INCIDENT_CLUSTER = "shah_alam_delay_d12"
 DEFAULT_AS_OF = (datetime.fromisoformat(os.environ["MOCK_API_AS_OF"]) if os.getenv("MOCK_API_AS_OF")
                  else datetime.combine(START_DATE, time.min) + timedelta(days=N_DAYS))
 
+# --------------------------------------------------------------- LLM (Gemini)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")   # pinned so evals are reproducible
+# Free-tier limits change: check Google AI Studio and adjust. The client stays under both.
+LLM_REQUESTS_PER_MINUTE = 10
+LLM_DAILY_REQUEST_CAP = 900      # stop before the real daily limit so a run never dies halfway
+LLM_MAX_ATTEMPTS = 4             # tries per request (retries on 429 / 5xx / bad JSON, with backoff)
+LLM_CACHE_PATH = ROOT / "data" / "llm_cache.jsonl"        # identical requests are never paid for twice
+LLM_CALL_LOG_PATH = ROOT / "data" / "llm_calls.jsonl"     # one line per real API attempt (daily cap counts these)
+
 # --------------------------------------------------- agent safety limits
 # These are enforced in Python (tools/router), never only in a prompt.
 REFUND_AUTO_LIMIT_RM = 50.0      # above this a refund is never automatic
@@ -124,6 +134,7 @@ def _sanity_check() -> None:
         for lo, hi in ranges:
             assert 0 < lo < hi <= 99999
     assert WARMUP_DAYS >= 0
+    assert LLM_REQUESTS_PER_MINUTE > 0 and LLM_DAILY_REQUEST_CAP > 0 and LLM_MAX_ATTEMPTS >= 1
     assert 0 < REFUND_AUTO_LIMIT_RM <= 50, "CLAUDE.md caps automatic refunds at RM50"
 
 
@@ -137,4 +148,5 @@ if __name__ == "__main__":
     print("Incident           :", INCIDENT_HUB, "day", INCIDENT_DAY, "~", INCIDENT_TICKETS, "tickets")
     print("Refund auto limit  : RM", REFUND_AUTO_LIMIT_RM)
     print("Confidence thresh. :", CONFIDENCE_THRESHOLD)
+    print("LLM                :", LLM_MODEL, "|", LLM_REQUESTS_PER_MINUTE, "req/min |", LLM_DAILY_REQUEST_CAP, "req/day | key set:", bool(GEMINI_API_KEY))
     print("Sanity checks passed.")
