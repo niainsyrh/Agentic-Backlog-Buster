@@ -16,3 +16,4 @@ data/*.parquet
 data/*.zip
 data/*.jsonl
 !data/.gitkeep
+!data/handwritten_tickets.csv

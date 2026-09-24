@@ -25,14 +25,24 @@ MOCK_API_URL = os.getenv("MOCK_API_URL", "http://127.0.0.1:8000")
 SEED = 42                        # fixed seed -> identical data every run
 START_DATE = date(2026, 1, 1)    # day_index 1 == this date
 N_DAYS = 30
-N_ORDERS = 5000
+N_ORDERS = 5000                  # orders placed inside the 30-day window
+WARMUP_DAYS = 14                 # extra days of orders BEFORE day 1, so day-1 ticket volume is already steady
+N_CUSTOMERS = 5000
+CANCEL_RATE = 0.03               # share of orders cancelled before shipping
+REFUND_RATE = 0.035              # share of delivered orders that get a refund
+BASELINE_DELAY_RATE = 0.04       # normal courier delays outside the incident
+LOST_PARCEL_RATE = 0.004
+HUB_DWELL_DAYS = (1, 2, 3)       # days a parcel normally sits at a sorting hub
+HUB_DWELL_WEIGHTS = (5, 3, 2)
 BASELINE_TICKET_RATE = 0.08      # share of orders that raise a normal ticket
+MENTION_ORDER_RATE = 0.65        # share of tickets whose text quotes the order ID
 TRICKY_RATE = 0.10               # share of baseline tickets that are deliberately tricky
 STALE_WAITING_RATE = 0.06        # share of baseline tickets left "waiting_customer"
 
 # Planned incident: Shah Alam hub delay
 INCIDENT_HUB = "Shah Alam"
 INCIDENT_DAY = 12                # day_index the delay starts
+INCIDENT_LAST_ARRIVAL_DAY = 14   # parcels reaching the hub after this day are not held
 INCIDENT_TICKETS = 300
 INCIDENT_TICKET_SPLIT = {12: 0.60, 13: 0.30, 14: 0.10}   # must sum to 1.0
 INCIDENT_DELAY_DAYS = (3, 6)     # extra days added to affected shipments
@@ -108,6 +118,7 @@ def _sanity_check() -> None:
     for _, ranges in STATES.values():
         for lo, hi in ranges:
             assert 0 < lo < hi <= 99999
+    assert WARMUP_DAYS >= 0
     assert 0 < REFUND_AUTO_LIMIT_RM <= 50, "CLAUDE.md caps automatic refunds at RM50"
 
 

@@ -1,0 +1,4 @@
+text,language,intent,expected_lane
+Parcel saya {order_id} tak sampai lagi dah {days} hari boss. Tolong check ye,mixed,where_is_parcel,autopilot
+Assalamualaikum. Saya nak tanya status refund untuk pesanan {order_id}. Terima kasih.,ms,refund_status,autopilot
+Received the wrong colour for my order {order_id}. Please advise how to exchange it.,en,wrong_item,human_queue
