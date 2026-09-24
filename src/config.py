@@ -8,7 +8,7 @@ Run `python src/config.py` to print the settings and run sanity checks.
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -47,6 +47,11 @@ INCIDENT_TICKETS = 300
 INCIDENT_TICKET_SPLIT = {12: 0.60, 13: 0.30, 14: 0.10}   # must sum to 1.0
 INCIDENT_DELAY_DAYS = (3, 6)     # extra days added to affected shipments
 INCIDENT_CLUSTER = "shah_alam_delay_d12"
+
+# What "now" means for the mock API when a request has no ?as_of=. Default: end of day 30.
+# Set MOCK_API_AS_OF="2026-01-12 10:00:00" in .env to pin the API to a moment (e.g. the spike).
+DEFAULT_AS_OF = (datetime.fromisoformat(os.environ["MOCK_API_AS_OF"]) if os.getenv("MOCK_API_AS_OF")
+                 else datetime.combine(START_DATE, time.min) + timedelta(days=N_DAYS))
 
 # --------------------------------------------------- agent safety limits
 # These are enforced in Python (tools/router), never only in a prompt.
@@ -128,6 +133,7 @@ if __name__ == "__main__":
     print("DB_PATH            :", DB_PATH)
     print("START_DATE / DAYS  :", START_DATE, "/", N_DAYS)
     print("N_ORDERS / SEED    :", N_ORDERS, "/", SEED)
+    print("API default as_of  :", DEFAULT_AS_OF)
     print("Incident           :", INCIDENT_HUB, "day", INCIDENT_DAY, "~", INCIDENT_TICKETS, "tickets")
     print("Refund auto limit  : RM", REFUND_AUTO_LIMIT_RM)
     print("Confidence thresh. :", CONFIDENCE_THRESHOLD)
