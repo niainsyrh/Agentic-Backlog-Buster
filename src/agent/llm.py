@@ -93,9 +93,17 @@ class LLMClient:
         self._cache[key] = record
         return response
 
+    def is_cached(self, prompt: str, *, system: str | None = None, schema: dict | None = None) -> bool:
+        """True if this exact request would be answered from the cache (costs no quota)."""
+        return self.cache_key(prompt, system, schema) in self._cache
+
     @property
     def calls_today(self) -> int:
         return self._calls_today
+
+    @property
+    def remaining_today(self) -> int:
+        return max(0, self.daily_cap - self._calls_today)
 
     # ------------------------------------------------------------ internals
     def _load_cache(self) -> dict[str, dict]:
@@ -291,6 +299,8 @@ def _self_test() -> None:
             assert fake8.calls == 0
         assert capped.generate_json("cap 1") == {"echo": "cap 1"}   # cached answers stay free at the cap
         print("ok  daily cap: stops before the 3rd call, persists across restarts, cached answers still work")
+        assert capped.is_cached("cap 1") and not capped.is_cached("never asked") and capped.remaining_today == 0
+        print("ok  is_cached() / remaining_today let a caller predict quota use before spending it")
 
     print("llm.py self-test passed (no real API calls were made).")
 
