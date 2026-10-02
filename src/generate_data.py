@@ -359,17 +359,17 @@ BASELINE_INTENT_WEIGHTS = {
 TRICKY = {   # kind -> (intent, pool). Expected lane is always human_queue.
     "trick_injection": ("refund_request", "refund_request"),
     "trick_legal": ("fraud_or_legal", "fraud_or_legal"),
-    "trick_lost": ("where_is_parcel", "lost"),
+    "trick_lost": ("delivery_delay", "lost"),          # customer says tracking is stuck / parcel lost
     "trick_delivered": ("where_is_parcel", "delivered_not_received"),
     "trick_multi": ("damaged_item", "delayed_delivered"),
 }
 # (intent, lane) -> pools to draw from, for hand-written tickets.
 HW_POOLS: dict[tuple[str, str], tuple[str, ...]] = {
     ("where_is_parcel", "autopilot"): ("where_is_parcel",),
-    ("where_is_parcel", "human_queue"): ("lost", "delivered_not_received"),
+    ("where_is_parcel", "human_queue"): ("delivered_not_received",),
     ("delivery_delay", "autopilot"): ("courier_delay",),
     ("delivery_delay", "cluster_fix"): ("incident",),
-    ("delivery_delay", "human_queue"): ("delayed_delivered",),
+    ("delivery_delay", "human_queue"): ("lost", "delayed_delivered"),
     ("refund_status", "autopilot"): ("refund_status",),
     ("refund_status", "human_queue"): ("refund_status_rejected",),
     ("general_question", "autopilot"): (),
@@ -445,10 +445,13 @@ def load_handwritten(path: Path = C.HANDWRITTEN_CSV) -> list[dict]:
         if missing:
             raise ValueError(f"{path.name}: missing columns {sorted(missing)}")
         for n, row in enumerate(reader, start=2):
+            where = f"{path.name} line {n}"
+            if None in row:   # csv.DictReader's restkey: more commas in the row than header columns
+                raise ValueError(f"{where}: has more fields than the header (an unquoted comma in the text? "
+                                 f'wrap it in double quotes: "...") -> extra field(s): {row[None]!r}')
             row = {k: (v or "").strip() for k, v in row.items()}
             if not any(row.values()):
                 continue
-            where = f"{path.name} line {n}"
             if not row["text"]:
                 raise ValueError(f"{where}: empty text")
             if row["language"] not in C.LANGUAGES:
@@ -521,8 +524,8 @@ class TicketFactory:
                        "payment_issue": "medium", "trick_lost": "medium", "trick_delivered": "medium"}.get(kind, "low")
             if kind == "incident_delay":
                 urgency = rng.choices(["medium", "high"], [70, 30])[0]
-            if urgency == "low" and days >= 7:
-                urgency = "medium"
+            # Deliberately NOT bumped by `days` here: urgency must be readable from the TEXT alone,
+            # since that is all the understand step (and the evaluation) can ever see.
 
         mention = order is not None and rng.random() < C.MENTION_ORDER_RATE
         if hw_text is not None:
@@ -710,13 +713,14 @@ def validate(conn: sqlite3.Connection) -> list[str]:
         elif intent == "where_is_parcel":
             if lane == "autopilot" and status not in state.IN_TRANSIT:
                 bad(f"status question but shipment is {status}")
-            if lane == "human_queue" and not (status == "delivered" or (status == "delayed" and reason == "lost")):
-                bad(f"exception case needs a lost or delivered shipment, got {status}/{reason}")
+            if lane == "human_queue" and status != "delivered":
+                bad(f"delivered-but-not-received case needs a delivered shipment, got {status}/{reason}")
         elif intent == "delivery_delay":
             if lane == "autopilot" and not (status == "delayed" and reason == "courier_delay"):
                 bad(f"delay ticket but shipment is {status}/{reason}")
-            if lane == "human_queue" and not (status == "delivered" and ship["delay_days"] >= 2):
-                bad("late-and-delivered case needs a delayed delivered shipment")
+            if lane == "human_queue" and not ((status == "delayed" and reason == "lost")
+                                              or (status == "delivered" and ship["delay_days"] >= 2)):
+                bad(f"needs a lost parcel or a late delivery, got {status}/{reason}")
         elif intent == "refund_status":
             if rs is None:
                 bad("refund-status ticket but the order has no refund yet")

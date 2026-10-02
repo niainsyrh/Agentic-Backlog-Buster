@@ -17,3 +17,6 @@ data/*.zip
 data/*.jsonl
 !data/.gitkeep
 !data/handwritten_tickets.csv
+
+# Evaluation outputs (regenerate with eval/run_eval.py)
+eval/results/
