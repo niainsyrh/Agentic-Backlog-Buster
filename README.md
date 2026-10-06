@@ -133,11 +133,25 @@ Labelled test set of ~300 tickets (~80 Manglish, ~30 deliberately tricky).
 
 | Area | Metric | Target | Result |
 |---|---|---|---|
-| Understanding | Intent accuracy (overall / Manglish) | ≥90% | TBD |
+| Understanding | Intent accuracy (overall / Manglish) | ≥90% | **94.7% / 91.8%** |
 | Clustering | Cluster purity | ≥90% | TBD |
 | Autopilot | Factual accuracy vs system data | 100% | TBD |
 | Routing | Escalation recall | ≥98% | TBD |
 | Tone | Human rubric (1–5) | ≥4 | TBD |
+
+Full breakdown (700 tickets, `gemini-3.5-flash-lite`, prompt `understand-v2`): language accuracy 93.1%
+(Malay 95.7%, English 96.1%, Manglish 91.8%), urgency accuracy 94.2%, order-ID extraction 100%
+(no invented IDs on tickets that don't quote one), prompt-injection recall 100% (1 false alarm out
+of 695 clean tickets). 18 of 700 calls (2.6%) failed after retries (a transient run of API errors);
+every failure returns `ok=False`, which the router sends to a human rather than guessing.
+
+The two biggest confusion patterns are real ambiguity, not bugs:
+- **"Refund biasanya ambil berapa lama?"** ("how long does a refund usually take") is labelled
+  `general_question` (a policy question) but the model reads it as `refund_status` (asking about
+  *their own* refund) — a defensible read either way, since the sentence alone can't disambiguate.
+- **"Kawan-kawan pun parcel tak sampai, order sama. Ada update tak?"** (an incident-cluster ticket
+  that implies a delay by referencing a pattern, without an explicit "late/stuck/delayed" word) gets
+  read as `where_is_parcel` instead of `delivery_delay` — borderline by our own labelling rule.
 
 Run it yourself: `python eval/run_eval.py --sample 30` (small, cached) or `--all` (every ticket).
 
@@ -240,8 +254,8 @@ backlog-buster/
 
 ## Build log
 
-- [ ] Week 1: data layer and mock APIs
-- [ ] Week 2: understand step and first evaluation
+- [x] Week 1: data layer and mock APIs
+- [x] Week 2: understand step and first evaluation
 - [ ] Week 3: autopilot and chaser lanes
 - [ ] Week 4: clustering and approval flow
 - [ ] Week 5: human queue, safety tests, dashboard
